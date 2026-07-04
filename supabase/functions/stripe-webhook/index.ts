@@ -2,11 +2,12 @@
 // Uses Stripe Payment Links (no checkout code) - the payment link is built in
 // the frontend with ?client_reference_id=<supabase user id>, so we know who paid.
 //
-// Secrets (Project Settings -> Edge Functions -> Secrets, or CLI):
+// Secrets you set (Project Settings -> Edge Functions -> Secrets, or CLI):
 //   STRIPE_SECRET_KEY          -> sk_live_... (or sk_test_...)
 //   STRIPE_WEBHOOK_SECRET      -> whsec_... from the Stripe webhook endpoint
-//   SUPABASE_URL               -> your project url
-//   SUPABASE_SERVICE_ROLE_KEY  -> service role key (Project Settings -> API). SERVER ONLY.
+// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-injected into every Edge
+// Function by Supabase. Do NOT set them: the SUPABASE_ prefix is reserved and
+// `supabase secrets set` rejects it.
 //
 // Point a Stripe webhook (Developers -> Webhooks) at this function's URL,
 // events: checkout.session.completed, customer.subscription.deleted.
