@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradeSignal</title>
+<style>
+  :root{
+    --bg:#0A0E17; --panel:#121826; --panel2:#182031; --line:rgba(255,255,255,.08);
+    --text:#C9D3E3; --bright:#F2F6FC; --muted:#71809A;
+    --teal:#2DD4BF; --green:#22C55E; --red:#EF4444; --amber:#F5B301;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.55;}
+  .wrap{max-width:960px;margin:0 auto;padding:0 18px;}
+  a{color:var(--teal);}
+  h1,h2,h3{color:var(--bright);line-height:1.2;}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+  header{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,14,23,.85);backdrop-filter:blur(10px);z-index:10;}
+  .hbar{display:flex;align-items:center;justify-content:space-between;height:60px;}
+  .logo{font-weight:800;color:var(--bright);font-size:1.15rem;}
+  .logo span{color:var(--teal);}
+  .who{display:flex;align-items:center;gap:12px;font-size:.9rem;}
+
+  .btn{border:none;cursor:pointer;border-radius:9px;padding:10px 16px;font-weight:700;font-size:.9rem;font-family:inherit;transition:opacity .15s,transform .1s;}
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .btn-primary{background:var(--teal);color:#04231f;}
+  .btn-ghost{background:transparent;color:var(--bright);border:1px solid var(--line);}
+  .btn-sm{padding:7px 12px;font-size:.82rem;}
+
+  .disclaimer{background:rgba(245,179,1,.08);border:1px solid rgba(245,179,1,.25);color:var(--amber);
+    font-size:.8rem;border-radius:8px;padding:10px 14px;margin:16px 0;}
+
+  .grid{display:grid;gap:16px;}
+  @media(min-width:720px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;}
+  .stat .n{font-size:1.9rem;font-weight:800;color:var(--bright);}
+  .stat .n.good{color:var(--green);} .stat .n.bad{color:var(--red);}
+  .stat .c{font-size:.82rem;color:var(--muted);margin-top:2px;}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;}
+  section{margin:26px 0;}
+  .sec-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .sec-title h2{font-size:1.25rem;}
+
+  /* signal cards */
+  .signal{border-left:4px solid var(--muted);}
+  .signal.BUY{border-left-color:var(--green);}
+  .signal.SELL{border-left-color:var(--red);}
+  .signal .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .sym{font-weight:800;color:var(--bright);font-size:1.15rem;}
+  .side{font-weight:800;font-size:.78rem;padding:3px 9px;border-radius:6px;}
+  .side.BUY{background:rgba(34,197,94,.15);color:var(--green);}
+  .side.SELL{background:rgba(239,68,68,.15);color:var(--red);}
+  .pill{font-size:.72rem;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);}
+  .pill.open{color:var(--amber);border-color:rgba(245,179,1,.4);}
+  .pill.hit_target{color:var(--green);border-color:rgba(34,197,94,.4);}
+  .pill.hit_sl,.pill.closed{color:var(--red);border-color:rgba(239,68,68,.4);}
+  .levels{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0 8px;font-size:.9rem;}
+  .levels div span{color:var(--muted);font-size:.78rem;display:block;}
+  .signal .foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);}
+  .ts{font-size:.78rem;color:var(--muted);}
+
+  input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+    padding:11px 12px;color:var(--bright);font-family:inherit;font-size:.95rem;}
+  input:focus,select,textarea:focus{outline:none;border-color:var(--teal);}
+  label{font-size:.82rem;color:var(--text);display:block;margin:0 0 5px;}
+  .form-row{display:grid;gap:12px;}
+  @media(min-width:600px){.cols-3{grid-template-columns:1fr 1fr 1fr;}.cols-2{grid-template-columns:1fr 1fr;}}
+
+  .ref{background:var(--panel2);border:1px dashed var(--teal);border-radius:12px;padding:16px;display:flex;
+    align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .ref code{color:var(--teal);font-weight:700;}
+
+  .hidden{display:none!important;}
+  .muted{color:var(--muted);}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);
+    border:1px solid var(--line);color:var(--bright);padding:12px 18px;border-radius:10px;z-index:50;opacity:0;transition:opacity .2s;}
+  .toast.show{opacity:1;}
+  .authbox{max-width:400px;margin:0 auto;}
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tabs button{flex:1;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:9px;cursor:pointer;font-family:inherit;font-weight:600;}
+  .tabs button.active{background:var(--teal);color:#04231f;border-color:var(--teal);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hbar">
+    <div class="logo" id="brand">Trade<span>Signal</span></div>
+    <div class="who" id="who">
+      <button class="btn btn-ghost btn-sm" id="showAuth">Sign in</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="disclaimer">
+    ⚠️ Educational content only. Not financial advice. We are not registered investment advisors.
+    Trading involves risk of loss. Do your own research.
+  </div>
+
+  <!-- TRACK RECORD (always public) -->
+  <section>
+    <div class="sec-title"><h2>Track record</h2><span class="muted" id="trHint">closed calls</span></div>
+    <div class="grid stats-grid" id="stats">
+      <div class="stat"><div class="n" id="stWin">–</div><div class="c">Win rate</div></div>
+      <div class="stat"><div class="n" id="stTotal">–</div><div class="c">Total calls</div></div>
+      <div class="stat"><div class="n good" id="stW">–</div><div class="c">Winners</div></div>
+      <div class="stat"><div class="n bad" id="stL">–</div><div class="c">Losers</div></div>
+    </div>
+  </section>
+
+  <!-- REFERRAL + UPGRADE (logged-in only) -->
+  <section id="refSec" class="hidden">
+    <div class="ref">
+      <div>Your invite link · share it to grow: <code id="refLink">–</code></div>
+      <button class="btn btn-primary btn-sm" id="copyRef">Copy</button>
+    </div>
+    <div id="upgradeBox" class="ref hidden" style="margin-top:12px;border-color:var(--amber);">
+      <div>You're on the <b>free</b> tier · signals shown 30 min delayed. Go live:</div>
+      <a class="btn btn-primary btn-sm" id="upgradeBtn" href="#">Upgrade to live signals →</a>
+    </div>
+  </section>
+
+  <!-- ADMIN: post a signal (admin only) -->
+  <section id="adminSec" class="hidden">
+    <div class="card">
+      <div class="sec-title"><h2>Post a signal</h2><span class="pill open">admin</span></div>
+      <div class="form-row cols-3 grid">
+        <div><label>Symbol</label><input id="aSym" placeholder="RELIANCE"></div>
+        <div><label>Side</label><select id="aSide"><option>BUY</option><option>SELL</option></select></div>
+        <div><label>Entry</label><input id="aEntry" type="number" step="any"></div>
+      </div>
+      <div class="form-row cols-2 grid" style="margin-top:12px;">
+        <div><label>Target</label><input id="aTarget" type="number" step="any"></div>
+        <div><label>Stop loss</label><input id="aSl" type="number" step="any"></div>
+      </div>
+      <div style="margin-top:12px;"><label>Note (optional)</label><textarea id="aNote" rows="2" placeholder="Breakout above resistance..."></textarea></div>
+      <button class="btn btn-primary" id="postSignal" style="margin-top:14px;">Broadcast signal →</button>
+    </div>
+  </section>
+
+  <!-- LIVE FEED -->
+  <section>
+    <div class="sec-title"><h2>Live signals</h2><span class="muted" id="liveDot">● live</span></div>
+    <div class="grid" id="feed"><div class="muted">Loading…</div></div>
+  </section>
+
+  <!-- AUTH -->
+  <section id="authSec" class="hidden">
+    <div class="card authbox">
+      <div class="tabs"><button id="tabLogin" class="active">Log in</button><button id="tabSignup">Sign up free</button></div>
+      <div class="form-row grid">
+        <div id="nameWrap" class="hidden"><label>Display name</label><input id="fName" placeholder="Your name"></div>
+        <div><label>Email</label><input id="fEmail" type="email"></div>
+        <div><label>Password</label><input id="fPass" type="password" placeholder="min 6 chars"></div>
+      </div>
+      <button class="btn btn-primary" id="doAuth" style="margin-top:14px;width:100%;">Log in</button>
+      <p class="muted" id="refNote" style="font-size:.8rem;margin-top:10px;"></p>
+    </div>
+  </section>
+
+  <footer style="margin:40px 0 30px;font-size:.8rem;" class="muted">
+    Educational only · Not financial advice · <span id="year"></span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const toast = m => { const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); };
+$('#year').textContent = new Date().getFullYear();
+if (window.BRAND) $('#brand').textContent = window.BRAND;
+
+if (!window.SUPABASE_URL || SUPABASE_URL.includes('YOUR_PROJECT')) {
+  $('#feed').innerHTML = '<div class="disclaimer">Set your Supabase URL + anon key in <b>config.js</b>, then reload. See README.</div>';
+}
+const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+// capture referral code from ?ref=CODE
+const refCode = new URLSearchParams(location.search).get('ref');
+if (refCode) { $('#refNote').textContent = 'Invited with code ' + refCode; }
+
+let me = null, profile = null, myFollows = new Set();
+
+// ---------- AUTH UI ----------
+let mode = 'login';
+$('#tabLogin').onclick = () => setMode('login');
+$('#tabSignup').onclick = () => setMode('signup');
+function setMode(m){ mode=m;
+  $('#tabLogin').classList.toggle('active',m==='login');
+  $('#tabSignup').classList.toggle('active',m==='signup');
+  $('#nameWrap').classList.toggle('hidden',m!=='signup');
+  $('#doAuth').textContent = m==='login'?'Log in':'Create account';
+}
+$('#showAuth').onclick = () => { $('#authSec').classList.toggle('hidden'); $('#authSec').scrollIntoView({behavior:'smooth'}); };
+
+$('#doAuth').onclick = async () => {
+  const email=$('#fEmail').value.trim(), pass=$('#fPass').value;
+  if(!email||!pass) return toast('Email + password needed');
+  $('#doAuth').disabled=true;
+  try {
+    if(mode==='signup'){
+      const { error } = await sb.auth.signUp({ email, password:pass,
+        options:{ data:{ display_name:$('#fName').value.trim(), referred_by:refCode } } });
+      if(error) throw error;
+      toast('Account created! Check email if confirmation is on.');
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password:pass });
+      if(error) throw error;
+    }
+  } catch(e){ toast(e.message); } finally { $('#doAuth').disabled=false; }
+};
+
+// ---------- SESSION ----------
+sb.auth.onAuthStateChange((_e,session)=>{ me = session?.user||null; onAuth(); });
+
+async function onAuth(){
+  if(me){
+    const { data } = await sb.from('profiles').select('*').eq('id',me.id).single();
+    profile = data;
+    $('#who').innerHTML = `<span class="muted">${profile?.display_name||me.email}</span>
+      <button class="btn btn-ghost btn-sm" id="logout">Log out</button>`;
+    $('#logout').onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
+    $('#authSec').classList.add('hidden');
+    $('#refSec').classList.remove('hidden');
+    const link = `${location.origin}${location.pathname}?ref=${profile?.referral_code||''}`;
+    $('#refLink').textContent = link;
+    $('#copyRef').onclick = ()=>{ navigator.clipboard.writeText(link); toast('Invite link copied'); };
+    // paid-tier upgrade button (free followers only, if a Stripe link is set)
+    const isLive = profile?.role==='admin' || (profile?.tier==='paid' && (!profile?.paid_until || new Date(profile.paid_until)>new Date()));
+    const showUpgrade = !isLive && !!window.STRIPE_PAYMENT_LINK;
+    $('#upgradeBox').classList.toggle('hidden', !showUpgrade);
+    if(showUpgrade){
+      const sep = window.STRIPE_PAYMENT_LINK.includes('?')?'&':'?';
+      $('#upgradeBtn').href = `${window.STRIPE_PAYMENT_LINK}${sep}client_reference_id=${me.id}&prefilled_email=${encodeURIComponent(me.email)}`;
+    }
+    const badge = profile?.role==='admin'?'admin':(isLive?'live':'free');
+    $('#who').querySelector('.muted').insertAdjacentHTML('beforeend', ` <span class="pill ${badge==='free'?'':'hit_target'}">${badge}</span>`);
+    $('#adminSec').classList.toggle('hidden', profile?.role!=='admin');
+    const { data:f } = await sb.from('follows').select('signal_id').eq('user_id',me.id);
+    myFollows = new Set((f||[]).map(r=>r.signal_id));
+  } else {
+    profile=null; myFollows=new Set();
+    $('#who').innerHTML = `<button class="btn btn-ghost btn-sm" id="showAuth2">Sign in</button>`;
+    $('#showAuth2').onclick = ()=>$('#showAuth').click();
+    $('#refSec').classList.add('hidden'); $('#adminSec').classList.add('hidden');
+  }
+  loadFeed();
+}
+
+// ---------- FEED ----------
+async function loadFeed(){
+  const { data, error } = await sb.from('signals').select('*').order('created_at',{ascending:false}).limit(50);
+  if(error){ $('#feed').innerHTML=`<div class="muted">${error.message}</div>`; return; }
+  renderStats(data);
+  $('#feed').innerHTML = data.length ? data.map(renderSignal).join('') : '<div class="muted">No signals yet.</div>';
+  wireFeed(data);
+}
+
+function renderSignal(s){
+  const lv = (l,v)=> v!=null ? `<div><span>${l}</span>${v}</div>` : '';
+  const took = myFollows.has(s.id);
+  const res = s.result_pct!=null ? `<span class="mono ${s.result_pct>=0?'':''}" style="color:${s.result_pct>=0?'var(--green)':'var(--red)'}">${s.result_pct>=0?'+':''}${s.result_pct}%</span>` : '';
+  return `<div class="card signal ${s.side}" data-id="${s.id}">
+    <div class="top">
+      <span class="sym">${esc(s.symbol)}</span>
+      <span class="side ${s.side}">${s.side}</span>
+      <span class="pill ${s.status}">${s.status.replace('_',' ')}</span>
+      ${res}
+    </div>
+    <div class="levels mono">${lv('Entry',s.entry)}${lv('Target',s.target)}${lv('Stop',s.stoploss)}</div>
+    ${s.note?`<div class="muted" style="font-size:.9rem">${esc(s.note)}</div>`:''}
+    <div class="foot">
+      <span class="ts">${new Date(s.created_at).toLocaleString()}</span>
+      <span>
+        ${me && s.status==='open' ? `<button class="btn ${took?'btn-ghost':'btn-primary'} btn-sm followBtn">${took?'✓ Taken':'I took this'}</button>`:''}
+        ${profile?.role==='admin' && s.status==='open' ? `
+          <button class="btn btn-ghost btn-sm closeBtn" data-r="hit_target">Target hit</button>
+          <button class="btn btn-ghost btn-sm closeBtn" data-r="hit_sl">SL hit</button>`:''}
+      </span>
+    </div>
+  </div>`;
+}
+
+function wireFeed(data){
+  document.querySelectorAll('.followBtn').forEach(b=>{
+    b.onclick = async ()=>{
+      const id = +b.closest('.signal').dataset.id;
+      if(myFollows.has(id)){ await sb.from('follows').delete().eq('signal_id',id).eq('user_id',me.id); myFollows.delete(id); }
+      else { await sb.from('follows').insert({signal_id:id,user_id:me.id}); myFollows.add(id); }
+      loadFeed();
+    };
+  });
+  document.querySelectorAll('.closeBtn').forEach(b=>{
+    b.onclick = async ()=>{
+      const s = data.find(x=>x.id===+b.closest('.signal').dataset.id);
+      const r = b.dataset.r;
+      // ponytail: result % computed from entry->target/sl, BUY vs SELL direction. Manual close by admin.
+      const exit = r==='hit_target'? s.target : s.stoploss;
+      let pct = exit!=null && s.entry ? ((exit-s.entry)/s.entry*100) : null;
+      if(pct!=null && s.side==='SELL') pct = -pct;
+      await sb.from('signals').update({status:r, closed_at:new Date().toISOString(),
+        result_pct: pct!=null? Math.round(pct*100)/100 : null}).eq('id',s.id);
+      loadFeed();
+    };
+  });
+}
+
+function renderStats(data){
+  const closed = data.filter(s=>s.result_pct!=null);
+  const wins = closed.filter(s=>s.result_pct>=0).length;
+  const losses = closed.length-wins;
+  $('#stTotal').textContent = closed.length;
+  $('#stW').textContent = wins; $('#stL').textContent = losses;
+  const wr = closed.length? Math.round(wins/closed.length*100):null;
+  const el=$('#stWin'); el.textContent = wr!=null? wr+'%':'–';
+  el.className = 'n '+(wr==null?'':wr>=50?'good':'bad');
+}
+
+// ---------- ADMIN POST ----------
+$('#postSignal').onclick = async ()=>{
+  const s = {
+    symbol:$('#aSym').value.trim().toUpperCase(), side:$('#aSide').value,
+    entry:parseFloat($('#aEntry').value),
+    target:$('#aTarget').value?parseFloat($('#aTarget').value):null,
+    stoploss:$('#aSl').value?parseFloat($('#aSl').value):null,
+    note:$('#aNote').value.trim()||null, created_by:me.id
+  };
+  if(!s.symbol||isNaN(s.entry)) return toast('Symbol + entry required');
+  const { error } = await sb.from('signals').insert(s);
+  if(error) return toast(error.message);
+  ['#aSym','#aEntry','#aTarget','#aSl','#aNote'].forEach(x=>$(x).value='');
+  toast('Signal broadcast');
+};
+
+// ---------- REALTIME: new/updated signals push to everyone live ----------
+sb.channel('signals-live')
+  .on('postgres_changes',{event:'*',schema:'public',table:'signals'},loadFeed)
+  .subscribe();
+
+function esc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+// initial
+sb.auth.getSession().then(({data})=>{ me=data.session?.user||null; onAuth(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+[
+  {
+    "id": 2,
+    "symbol": "RELIANCE",
+    "side": "BUY",
+    "entry": 2850,
+    "target": 2980,
+    "stoploss": 2790,
+    "note": "Breakout above consolidation. Sample signal - replace me.",
+    "status": "open",
+    "result_pct": null,
+    "created_at": "2026-07-04T09:20:00Z",
+    "closed_at": null
+  },
+  {
+    "id": 1,
+    "symbol": "TATASTEEL",
+    "side": "BUY",
+    "entry": 160,
+    "target": 172,
+    "stoploss": 154,
+    "note": "Sample closed winner - shows how the track record fills in.",
+    "status": "hit_target",
+    "result_pct": 7.5,
+    "created_at": "2026-06-28T09:20:00Z",
+    "closed_at": "2026-07-01T13:00:00Z"
+  }
+]
