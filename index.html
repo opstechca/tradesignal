@@ -126,6 +126,18 @@
     </div>
   </section>
 
+  <!-- ACCOUNT (logged-in only): change display name + password -->
+  <section id="acctSec" class="hidden">
+    <div class="card">
+      <div class="sec-title"><h2>Account</h2></div>
+      <div class="form-row cols-2 grid">
+        <div><label>Display name</label><input id="acName" placeholder="Your name"></div>
+        <div><label>New password</label><input id="acPass" type="password" placeholder="leave blank to keep current"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="acSave" style="margin-top:14px;">Save changes</button>
+    </div>
+  </section>
+
   <!-- ADMIN: post a signal (admin only) -->
   <section id="adminSec" class="hidden">
     <div class="card">
@@ -160,7 +172,8 @@
         <div><label>Password</label><input id="fPass" type="password" placeholder="min 6 chars"></div>
       </div>
       <button class="btn btn-primary" id="doAuth" style="margin-top:14px;width:100%;">Log in</button>
-      <p class="muted" id="refNote" style="font-size:.8rem;margin-top:10px;"></p>
+      <p style="font-size:.8rem;margin-top:10px;"><a href="#" id="forgotPass" class="muted">Forgot password?</a></p>
+      <p class="muted" id="refNote" style="font-size:.8rem;margin-top:6px;"></p>
     </div>
   </section>
 
@@ -202,6 +215,14 @@ function setMode(m){ mode=m;
 }
 $('#showAuth').onclick = () => { $('#authSec').classList.toggle('hidden'); $('#authSec').scrollIntoView({behavior:'smooth'}); };
 
+$('#forgotPass').onclick = async (e) => {
+  e.preventDefault();
+  const email = $('#fEmail').value.trim();
+  if(!email) return toast('Type your email first, then click Forgot password');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  toast(error ? error.message : 'Reset link sent - check your email');
+};
+
 $('#doAuth').onclick = async () => {
   const email=$('#fEmail').value.trim(), pass=$('#fPass').value;
   if(!email||!pass) return toast('Email + password needed');
@@ -231,6 +252,28 @@ async function onAuth(){
     $('#logout').onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
     $('#authSec').classList.add('hidden');
     $('#refSec').classList.remove('hidden');
+    // account panel: change display name + password
+    $('#acctSec').classList.remove('hidden');
+    $('#acName').value = profile?.display_name || '';
+    $('#acSave').onclick = async () => {
+      const newName = $('#acName').value.trim(), newPass = $('#acPass').value;
+      $('#acSave').disabled = true;
+      try {
+        if(newName && newName !== profile?.display_name){
+          const { error } = await sb.from('profiles').update({ display_name:newName }).eq('id',me.id);
+          if(error) throw error;
+          profile.display_name = newName;
+          $('#who').querySelector('.muted').firstChild.textContent = newName;
+        }
+        if(newPass){
+          if(newPass.length < 6) throw new Error('Password needs 6+ characters');
+          const { error } = await sb.auth.updateUser({ password:newPass });
+          if(error) throw error;
+          $('#acPass').value = '';
+        }
+        toast('Saved');
+      } catch(e){ toast(e.message); } finally { $('#acSave').disabled = false; }
+    };
     const link = `${location.origin}${location.pathname}?ref=${profile?.referral_code||''}`;
     $('#refLink').textContent = link;
     $('#copyRef').onclick = ()=>{ navigator.clipboard.writeText(link); toast('Invite link copied'); };
@@ -251,7 +294,7 @@ async function onAuth(){
     profile=null; myFollows=new Set();
     $('#who').innerHTML = `<button class="btn btn-ghost btn-sm" id="showAuth2">Sign in</button>`;
     $('#showAuth2').onclick = ()=>{ $('#authSec').classList.remove('hidden'); $('#authSec').scrollIntoView({behavior:'smooth'}); };
-    $('#refSec').classList.add('hidden'); $('#adminSec').classList.add('hidden');
+    $('#refSec').classList.add('hidden'); $('#adminSec').classList.add('hidden'); $('#acctSec').classList.add('hidden');
   }
   loadFeed();
 }
