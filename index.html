@@ -250,7 +250,7 @@ async function onAuth(){
   } else {
     profile=null; myFollows=new Set();
     $('#who').innerHTML = `<button class="btn btn-ghost btn-sm" id="showAuth2">Sign in</button>`;
-    $('#showAuth2').onclick = ()=>$('#showAuth').click();
+    $('#showAuth2').onclick = ()=>{ $('#authSec').classList.remove('hidden'); $('#authSec').scrollIntoView({behavior:'smooth'}); };
     $('#refSec').classList.add('hidden'); $('#adminSec').classList.add('hidden');
   }
   loadFeed();
