@@ -25,10 +25,11 @@ begin
   return new;
 end $$;
 
--- run the trigger function as the auth admin so its grants apply
-alter function public.handle_new_user() owner to supabase_auth_admin;
-
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- sanity check: must succeed with no error
+insert into public.profiles (id, display_name, referral_code) values (gen_random_uuid(),'diag','DIAG999');
+delete from public.profiles where referral_code='DIAG999';
