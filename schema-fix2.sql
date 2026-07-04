@@ -30,6 +30,5 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- sanity check: must succeed with no error
-insert into public.profiles (id, display_name, referral_code) values (gen_random_uuid(),'diag','DIAG999');
-delete from public.profiles where referral_code='DIAG999';
+-- No SQL sanity insert: profiles.id FKs to auth.users(id), so a fake uuid
+-- fails profiles_id_fkey and rolls back the whole tx. Test by signing up in the app.
