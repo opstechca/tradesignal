@@ -83,26 +83,29 @@ Any insert/update reloads the feed for everyone currently viewing, no refresh.
 - Per-follower referral links with `?ref=` capture.
 - Account panel: change display name + password.
 - RLS across all three tables; admin role set and confirmed working.
+- Public **leaderboard** (`schema-v3.sql`): top followers by total return, win
+  rate, calls taken. Your own row is highlighted.
+- **Your P&L** summary for logged-in followers, from the signals you took.
+- **Edge functions written**: Telegram auto-broadcast + Stripe paid-tier webhook.
+- **`deploy.sh`**: one non-interactive command deploys both functions from `.env`.
 
 ## What's next
-Roughly in priority order. Ask when you want one.
-1. **First real signals** + share the track record. The product is live; it needs data.
-2. **Telegram auto-broadcast**: Supabase Edge Function on new-signal insert
-   pushes to a Telegram channel (setup notes below). Reaches existing followers.
-3. **Paid tier (Stripe)**: `schema-v2.sql` gates the feed so free followers see
-   signals 30 min delayed and paid/admin see them live, enforced by RLS. Stripe
-   Payment Link + a webhook Edge Function flips a user to `tier='paid'`.
-   `STRIPE_PAYMENT_LINK` in `config.js` is empty until this is wired.
-4. **Web-push** browser notifications for new signals.
-5. **Per-follower P&L dashboard** + leaderboard (uses the `follows` data).
-6. **Live price feed** to auto-close signals at target/SL (needs a market data API).
+The remaining work needs credentials from your own accounts. Once you have them
+it is one command; nothing else is left to code.
+1. **First real signals** + share the leaderboard/track record. It needs data.
+2. **Deploy the edge functions**: fill `.env` (copy `.env.example`), then
+   `./deploy.sh`. Needs a Supabase Personal Access Token (`sbp_...`), and, per
+   function, a Telegram bot token and/or Stripe keys. Then add the two webhooks
+   in the dashboards (see below). Telegram + Stripe both go live from here.
+3. **Web-push** browser notifications for new signals (needs VAPID keys).
+4. **Live price feed** to auto-close signals at target/SL (needs a market data API).
 
 ---
 
 ## Setup (if starting fresh)
 1. Create a Supabase project. In SQL Editor, run `schema.sql`, then
-   `schema-fix2.sql` (the signup-trigger fix). Run `schema-v2.sql` only when you
-   want the paid tier.
+   `schema-fix2.sql` (the signup-trigger fix), then `schema-v3.sql` (leaderboard).
+   Run `schema-v2.sql` only when you want the paid tier.
 2. Put your Project URL + anon key in `config.js` (anon key is safe to expose).
 3. Sign up in the app, then make yourself admin in SQL Editor:
    ```sql
@@ -111,15 +114,28 @@ Roughly in priority order. Ask when you want one.
    ```
 4. Push to GitHub, enable Pages (Settings -> Pages -> Source: main / root).
 
-### Telegram auto-broadcast (when ready)
-BotFather -> `/newbot` -> token. Create a channel, add the bot as admin. Deploy a
-Supabase Edge Function, add a Database Webhook on `signals` insert pointing at it,
-guarded by an `x-webhook-secret` header. Ask and I'll write the function.
+### Deploy the edge functions (`deploy.sh`)
+Both functions are written (`supabase/functions/`). Install the CLI once
+(`brew install supabase/tap/supabase`), copy `.env.example` to `.env`, fill it,
+then run `./deploy.sh`. It links the project, sets secrets, and deploys whichever
+functions have credentials present. `.env` is gitignored. Then wire the two
+dashboard webhooks below.
 
-### Stripe paid tier (when ready)
-Stripe Payment Link -> put URL in `config.js`. The app appends
-`client_reference_id=<user id>`. A webhook Edge Function (holding the service
-role key as a secret, never in the frontend) flips the payer to `tier='paid'`.
+### Telegram auto-broadcast
+BotFather -> `/newbot` -> token. Create a channel, add the bot as admin, note its
+chat id. Put both (plus `WEBHOOK_SECRET`) in `.env`, run `./deploy.sh`. Then
+Supabase -> Database -> Webhooks -> Create: table `signals`, event Insert, HTTP
+POST to `https://<ref>.functions.supabase.co/telegram-broadcast`, header
+`x-webhook-secret` = your `WEBHOOK_SECRET`.
+
+### Stripe paid tier
+Run `schema-v2.sql` first (gates the feed). Stripe -> Payment Links -> put the URL
+in `config.js` as `STRIPE_PAYMENT_LINK`; the app appends `client_reference_id=<user
+id>`. Put `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` in `.env`, run `./deploy.sh`.
+Then Stripe -> Developers -> Webhooks -> add endpoint
+`https://<ref>.functions.supabase.co/stripe-webhook`, events
+`checkout.session.completed` + `customer.subscription.deleted`. The service role
+key is auto-injected into the function, never in the frontend.
 
 ---
 

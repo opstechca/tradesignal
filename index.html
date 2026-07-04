@@ -84,6 +84,14 @@
   .tabs{display:flex;gap:8px;margin-bottom:14px;}
   .tabs button{flex:1;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:9px;cursor:pointer;font-family:inherit;font-weight:600;}
   .tabs button.active{background:var(--teal);color:#04231f;border-color:var(--teal);}
+
+  .lbrow{display:grid;grid-template-columns:28px 1fr auto auto;gap:12px;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem;}
+  .lbrow:last-child{border-bottom:none;}
+  .lbrow .rank{color:var(--muted);}
+  .lbrow .nm{color:var(--bright);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lbrow.me{background:rgba(45,212,191,.06);border-radius:8px;padding-left:8px;padding-right:8px;}
+  @media(max-width:600px){.lbrow{grid-template-columns:24px 1fr auto;}.lbrow .muted{display:none;}}
 </style>
 </head>
 <body>
@@ -160,6 +168,12 @@
   <section>
     <div class="sec-title"><h2>Live signals</h2><span class="muted" id="liveDot">● live</span></div>
     <div class="grid" id="feed"><div class="muted">Loading…</div></div>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section id="lbSec">
+    <div class="sec-title"><h2>Leaderboard</h2><span class="muted" id="myPnl"></span></div>
+    <div class="card" id="lb"><div class="muted">Loading…</div></div>
   </section>
 
   <!-- AUTH -->
@@ -304,8 +318,34 @@ async function loadFeed(){
   const { data, error } = await sb.from('signals').select('*').order('created_at',{ascending:false}).limit(50);
   if(error){ $('#feed').innerHTML=`<div class="muted">${error.message}</div>`; return; }
   renderStats(data);
+  // ponytail: your P&L summed from the loaded 50 signals only. A SQL rollup can
+  // replace this if a follower's history grows past that window.
+  if(me){
+    const mine = data.filter(s=>myFollows.has(s.id) && s.result_pct!=null);
+    const tot = Math.round(mine.reduce((a,s)=>a+Number(s.result_pct),0)*100)/100;
+    $('#myPnl').textContent = mine.length ? `You: ${tot>=0?'+':''}${tot}% over ${mine.length} closed` : '';
+  } else $('#myPnl').textContent = '';
   $('#feed').innerHTML = data.length ? data.map(renderSignal).join('') : '<div class="muted">No signals yet.</div>';
   wireFeed(data);
+  loadLeaderboard();
+}
+
+async function loadLeaderboard(){
+  const { data, error } = await sb.rpc('leaderboard');
+  const el = $('#lb');
+  if(error){ el.innerHTML = `<div class="muted">${error.message}</div>`; return; }
+  if(!data || !data.length){ el.innerHTML = '<div class="muted">No closed calls taken yet.</div>'; return; }
+  el.innerHTML = data.map((r,i)=>{
+    const wr = r.calls_taken ? Math.round(r.wins/r.calls_taken*100) : 0;
+    const pct = Number(r.total_pct||0);
+    const mine = profile && r.display_name===profile.display_name;
+    return `<div class="lbrow${mine?' me':''}">
+      <span class="rank mono">${i+1}</span>
+      <span class="nm">${esc(r.display_name)}</span>
+      <span class="muted">${r.calls_taken} calls · ${wr}% win</span>
+      <span class="mono" style="color:${pct>=0?'var(--green)':'var(--red)'}">${pct>=0?'+':''}${pct}%</span>
+    </div>`;
+  }).join('');
 }
 
 function renderSignal(s){
