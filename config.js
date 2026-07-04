@@ -7,7 +7,7 @@ window.SUPABASE_URL  = "https://YOUR_PROJECT.supabase.co";
 window.SUPABASE_ANON_KEY = "YOUR_ANON_PUBLIC_KEY";
 
 // Your brand name shown in the header
-window.BRAND = "Your Signals";
+window.BRAND = "TradeSignal";
 
 // (Optional) Stripe Payment Link for the paid "live signals" tier.
 // Create at Stripe -> Payment Links. Leave "" to hide the upgrade button.

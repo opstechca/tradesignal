@@ -1,4 +1,4 @@
-# Stock Signals platform
+# TradeSignal
 
 Broadcast trading signals to followers, with accounts, a live feed, a public
 track record, and referral links. Frontend on GitHub Pages, data on Supabase
