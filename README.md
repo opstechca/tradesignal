@@ -1,123 +1,131 @@
 # TradeSignal
 
-Broadcast trading signals to followers, with accounts, a live feed, a public
-track record, and referral links. Frontend on GitHub Pages, data on Supabase
-(free). No server to run.
+Broadcast trading signals to followers, with free accounts, a realtime signal
+feed, an auto-calculated public track record, and per-follower referral links.
+Static frontend on GitHub Pages, data + auth on Supabase (free tier). No server
+to run and nothing to deploy beyond a `git push`.
 
-> Educational only. Not financial advice. Sending stock signals may be a
+> Educational only. Not financial advice. Broadcasting stock signals may be a
 > regulated activity where you live (SEBI / SEC / CIRO). Get advice before
-> charging money. A disclaimer is shown on every page - keep it.
+> charging money. A disclaimer shows on every page: keep it.
 
-## What it does
-- Followers **sign up free**, see a **live signal feed** (updates in real time).
-- Each follower taps **"I took this"** on signals they act on.
-- **Public track record**: win rate auto-calculated from closed calls. Your growth engine.
-- **Referral link** per follower to invite others (`?ref=CODE`).
-- **Admin** (you) posts signals and marks Target/SL hit; P&L % is auto-computed.
+---
 
-## Setup (15 minutes)
+## Design
 
-### 1. Create the Supabase project
-1. Go to [supabase.com](https://supabase.com) → new project (free). Pick a strong DB password.
-2. Left menu → **SQL Editor** → New query → paste all of `schema.sql` → **Run**.
-3. Left menu → **Project Settings → API**. Copy the **Project URL** and the **anon public** key.
+### Stack
+- **Frontend**: one file, `index.html`. Vanilla JS, no build step, no framework.
+  Supabase JS client loaded from CDN. `config.js` holds the public keys + brand.
+- **Backend**: Supabase (hosted Postgres). No custom server. Auth, database,
+  Row Level Security, and realtime all come from Supabase.
+- **Hosting**: GitHub Pages, plain static (`.nojekyll` forces raw serving).
 
-### 2. Wire up the frontend
-Edit `config.js`:
-```js
-window.SUPABASE_URL  = "https://xxxx.supabase.co";   // your Project URL
-window.SUPABASE_ANON_KEY = "eyJhbGciOi...";           // anon public key (safe to expose)
-window.BRAND = "Your Signals";
-```
-The anon key is meant to be public - Row Level Security in `schema.sql` protects the data.
+### Data model (`schema.sql`)
+| Table | Purpose |
+|---|---|
+| `profiles` | one row per user, mirrors `auth.users`. Holds `display_name`, `role` (`follower`/`admin`), `referral_code`, `referred_by`. `tier`/`paid_until` added by `schema-v2.sql`. |
+| `signals` | what the admin broadcasts: `symbol`, `side` (BUY/SELL), `entry`, `target`, `stoploss`, `note`, `status` (open/hit_target/hit_sl/closed), `result_pct`. |
+| `follows` | a follower marks "I took this" on a signal. Unique per (signal, user). |
 
-### 3. Make yourself the admin
-1. Open the app, **Sign up** with your email (this creates your account).
-2. In Supabase → SQL Editor, run (your email):
+### Security model (Row Level Security, enforced in Postgres)
+Nothing is trusted from the browser. The anon key is public by design; RLS is
+what actually protects data:
+- **signals**: anyone (even logged out) can READ, which powers the public track
+  record. Only an admin can insert or update.
+- **profiles**: you read/update only your own row (admin can read all).
+- **follows**: a follower manages only their own rows.
+- `is_admin()` / `is_paid()` are `security definer` helpers with a pinned
+  `search_path` so RLS checks can't be spoofed.
+
+### Signup trigger
+On every new `auth.users` row, a trigger (`handle_new_user`) auto-creates the
+matching `profiles` row and generates a referral code. The internal
+`supabase_auth_admin` role is granted rights on `profiles` so the trigger can
+insert; this was the cause of the early "Database error saving new user"
+failures, fixed in `schema-fix2.sql`.
+
+---
+
+## How it works
+
+**Follower flow**
+1. Signs up free (email + password). Profile + referral code created automatically.
+2. Sees the **live feed**: newest signals first, updated in realtime.
+3. Taps **"I took this"** on any open signal to log that they acted on it.
+4. Gets a personal **referral link** (`?ref=CODE`) to invite others; new signups
+   record who referred them.
+
+**Admin flow (you)**
+1. Post a signal: symbol, side, entry, optional target / stop loss / note.
+2. When a call plays out, click **Target hit** or **SL hit** on that signal.
+3. `result_pct` is computed at close from entry to exit, direction-aware
+   (BUY vs SELL), and stored.
+
+**Track record (always public)**
+Win rate, total calls, winners, losers are computed live in the browser from
+all closed signals. This is the growth engine: a logged-out visitor sees it.
+
+**Realtime**
+The frontend subscribes to a Supabase `postgres_changes` channel on `signals`.
+Any insert/update reloads the feed for everyone currently viewing, no refresh.
+
+---
+
+## Done so far
+- Static frontend live on GitHub Pages, wired to Supabase.
+- Email/password auth: sign up, log in, forgot-password reset.
+- Auto profile + referral code on signup (trigger fixed and verified).
+- Realtime signal feed, newest first.
+- Admin post-a-signal panel (admin-only, gated by RLS + UI).
+- Admin close-a-signal (Target hit / SL hit) with auto `result_pct`.
+- Public track record (win rate / totals) from closed calls.
+- "I took this" follow/unfollow per signal.
+- Per-follower referral links with `?ref=` capture.
+- Account panel: change display name + password.
+- RLS across all three tables; admin role set and confirmed working.
+
+## What's next
+Roughly in priority order. Ask when you want one.
+1. **First real signals** + share the track record. The product is live; it needs data.
+2. **Telegram auto-broadcast**: Supabase Edge Function on new-signal insert
+   pushes to a Telegram channel (setup notes below). Reaches existing followers.
+3. **Paid tier (Stripe)**: `schema-v2.sql` gates the feed so free followers see
+   signals 30 min delayed and paid/admin see them live, enforced by RLS. Stripe
+   Payment Link + a webhook Edge Function flips a user to `tier='paid'`.
+   `STRIPE_PAYMENT_LINK` in `config.js` is empty until this is wired.
+4. **Web-push** browser notifications for new signals.
+5. **Per-follower P&L dashboard** + leaderboard (uses the `follows` data).
+6. **Live price feed** to auto-close signals at target/SL (needs a market data API).
+
+---
+
+## Setup (if starting fresh)
+1. Create a Supabase project. In SQL Editor, run `schema.sql`, then
+   `schema-fix2.sql` (the signup-trigger fix). Run `schema-v2.sql` only when you
+   want the paid tier.
+2. Put your Project URL + anon key in `config.js` (anon key is safe to expose).
+3. Sign up in the app, then make yourself admin in SQL Editor:
    ```sql
    update profiles set role='admin'
    where id = (select id from auth.users where email='YOU@EMAIL.COM');
    ```
-3. Reload the app - you now see the **Post a signal** panel.
+4. Push to GitHub, enable Pages (Settings -> Pages -> Source: main / root).
 
-Optional: Supabase → Authentication → Providers → Email → turn **"Confirm email"** off
-for faster signups while testing.
+### Telegram auto-broadcast (when ready)
+BotFather -> `/newbot` -> token. Create a channel, add the bot as admin. Deploy a
+Supabase Edge Function, add a Database Webhook on `signals` insert pointing at it,
+guarded by an `x-webhook-secret` header. Ask and I'll write the function.
 
-## Deploy to GitHub Pages
-```bash
-cd signals-app
-git init && git add . && git commit -m "Stock signals app"
-git branch -M main
-git remote add origin git@github.com:YOUR_USER/signals-app.git   # create the empty repo first
-git push -u origin main
-```
-Then repo → **Settings → Pages → Source: main / root → Save**.
-Live at `https://YOUR_USER.github.io/signals-app/`.
+### Stripe paid tier (when ready)
+Stripe Payment Link -> put URL in `config.js`. The app appends
+`client_reference_id=<user id>`. A webhook Edge Function (holding the service
+role key as a secret, never in the frontend) flips the payer to `tier='paid'`.
 
-## Broadcasting to your existing followers (Telegram, free)
-The web app is the database + track record. To also **push** each new signal to a
-Telegram channel (easier + free vs WhatsApp Business API):
-1. Telegram → message **@BotFather** → `/newbot` → get a bot token.
-2. Create a channel, add the bot as admin.
-3. Later: a small Supabase Edge Function on new-signal insert calls
-   `https://api.telegram.org/bot<TOKEN>/sendMessage`. Ask and I'll add it.
-
-Keep your WhatsApp group too - put the app link in its description so members sign up.
-
-## Paid tier + auto-broadcast (v2)
-
-Run `schema-v2.sql` in the Supabase SQL Editor (after `schema.sql`). This adds
-paid tiers and gates the feed: **free followers see signals 30 min delayed**
-(plus all closed calls for the track record); **paid + admin see them live**.
-The gate is enforced by Row Level Security, so it can't be bypassed from the browser.
-
-Both features run as **Supabase Edge Functions** (free). Install the CLI once:
-`npm i -g supabase` then `supabase login` and `supabase link --project-ref YOUR_REF`.
-
-### (a) Telegram auto-broadcast
-1. Telegram → **@BotFather** → `/newbot` → copy the **token**.
-2. Create a channel, add the bot as an **admin**. Get its id (e.g. `@yoursignals`).
-3. Set secrets + deploy:
-   ```bash
-   supabase secrets set TELEGRAM_TOKEN=xxx TELEGRAM_CHAT_ID=@yoursignals WEBHOOK_SECRET=$(openssl rand -hex 16)
-   supabase functions deploy telegram-broadcast --no-verify-jwt
-   ```
-4. Supabase → **Database → Webhooks** → Create:
-   - Table `signals`, event **Insert**
-   - Type **HTTP Request** → URL = your function URL
-     (`https://YOUR_REF.functions.supabase.co/telegram-broadcast`)
-   - Add HTTP header `x-webhook-secret: <the WEBHOOK_SECRET value>`
-5. Post a signal in the app → it lands in your Telegram channel.
-
-### (b) Stripe paid tier
-1. Stripe → **Payment Links** → new link for your monthly plan. Copy the URL.
-2. Put it in `config.js`:
-   ```js
-   window.STRIPE_PAYMENT_LINK = "https://buy.stripe.com/xxxx";
-   ```
-   The app appends `?client_reference_id=<user id>` so the webhook knows who paid.
-3. Set secrets + deploy the webhook:
-   ```bash
-   supabase secrets set STRIPE_SECRET_KEY=sk_live_xxx STRIPE_WEBHOOK_SECRET=whsec_xxx \
-     SUPABASE_URL=https://YOUR_REF.supabase.co SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role
-   supabase functions deploy stripe-webhook --no-verify-jwt
-   ```
-4. Stripe → **Developers → Webhooks** → add endpoint = your function URL
-   (`https://YOUR_REF.functions.supabase.co/stripe-webhook`), events:
-   `checkout.session.completed`, `customer.subscription.deleted`.
-   Copy the signing secret (`whsec_...`) back into step 3 if you didn't already.
-5. A free follower clicks **Upgrade → live signals**, pays, and the webhook flips
-   them to `tier='paid'`. They see signals live immediately.
-
-> The **service role key** goes ONLY into the edge function secret - never into
-> `config.js` or the frontend. It bypasses all security rules.
-
-## Roadmap (ask when you want these)
-- Web-push notifications in the browser
-- Per-follower P&L dashboard and leaderboard
-- Live price feed to auto-close signals at target/SL (needs a market data API)
+---
 
 ## Shortcuts taken (deliberate)
-- Result % is computed from entry→target/SL at the moment admin closes a signal,
-  not from a live price feed. Add a data API when you want auto-close.
+- `result_pct` is computed from entry to target/SL at the moment the admin
+  closes a signal, not from a live price feed. Add a market data API for auto-close.
 - Single admin model via a `role` column. Fine for a small team.
+- Track record math runs client-side from the last 50 signals. Move to a SQL
+  view if the history grows large.
