@@ -3,8 +3,8 @@
 // Find them in: Supabase dashboard -> Project Settings -> API
 // The anon key is SAFE to expose publicly (Row Level Security protects data).
 // ============================================================
-window.SUPABASE_URL  = "https://YOUR_PROJECT.supabase.co";
-window.SUPABASE_ANON_KEY = "YOUR_ANON_PUBLIC_KEY";
+window.SUPABASE_URL  = "https://fseloqvdpclqwjqpkwju.supabase.co";
+window.SUPABASE_ANON_KEY = "sb_publishable_47iwY6JAN3nh9GODAyHglQ_5ecI1pKL";
 
 // Your brand name shown in the header
 window.BRAND = "TradeSignal";
