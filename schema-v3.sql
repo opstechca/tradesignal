@@ -7,10 +7,10 @@
 create or replace function leaderboard()
 returns table(display_name text, calls_taken bigint, wins bigint, total_pct numeric)
 language sql stable security definer set search_path = public as $$
-  select coalesce(p.display_name, 'anon')            as display_name,
-         count(*)                                    as calls_taken,
-         count(*) filter (where s.result_pct >= 0)   as wins,
-         round(sum(s.result_pct)::numeric, 2)        as total_pct
+  select coalesce(p.display_name, 'anon') as display_name,
+         count(*) as calls_taken,
+         sum(case when s.result_pct >= 0 then 1 else 0 end) as wins,
+         round(sum(s.result_pct)::numeric, 2) as total_pct
   from follows f
   join signals  s on s.id = f.signal_id
   join profiles p on p.id = f.user_id
